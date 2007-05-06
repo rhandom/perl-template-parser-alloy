@@ -795,7 +795,7 @@ sub compile_WHILE {
 
     my $expr  = $self->compile_expr($ref);
 
-    local $self->{'loop_type'} = 'while';
+    local $self->{'loop_type'} = 'WHILE';
     my $block = $self->compile_block($node->[4]);
 
     return $self->{'FACTORY'}->while($expr, $block);
