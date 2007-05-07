@@ -14,7 +14,7 @@ use Template::Parser::CET;
 BEGIN {
     $module = 'Template';         #real    0m2.133s #user    0m1.108s #sys     0m0.024s
     $is_tt = 0;
-    $is_tt = 1;
+    #$is_tt = 1;
     if ($is_tt) { Template::Parser::CET->deactivate } else { Template::Parser::CET->activate }
 };
 
