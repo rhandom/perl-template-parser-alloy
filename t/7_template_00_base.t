@@ -14,11 +14,11 @@ use Template::Parser::CET;
 BEGIN {
     $module = 'Template';         #real    0m2.133s #user    0m1.108s #sys     0m0.024s
     $is_tt = 0;
-    #$is_tt = 1;
+    $is_tt = 1;
     if ($is_tt) { Template::Parser::CET->deactivate } else { Template::Parser::CET->activate }
 };
 
-use Test::More tests => ! $is_tt ? 806 : 599;
+use Test::More tests => ! $is_tt ? 778 : 598;
 use Data::Dumper qw(Dumper);
 use constant test_taint => 0 && eval { require Taint::Runtime };
 
@@ -1167,30 +1167,30 @@ print "### DUMP #############################################################\n"
 
 if (! $is_tt) {
 local $ENV{'REQUEST_METHOD'} = 0;
-process_ok("[% DUMP a %]" => "DUMP: File \"input text\" line 1\n    a = undef;\n");
-process_ok("[% p = DUMP a; p.collapse %]" => 'DUMP: File "input text" line 1 a = undef;');
-process_ok("[% p = DUMP a; p.collapse %]" => 'DUMP: File "input text" line 1 a = \'s\';', {a => "s"});
-process_ok("[%\n p = DUMP a; p.collapse %]" => 'DUMP: File "input text" line 2 a = \'s\';', {a => "s"});
-process_ok("[% p = DUMP a, b; p.collapse %]" => 'DUMP: File "input text" line 1 a, b = [ \'s\', undef ];', {a => "s"});
-process_ok("[% p = DUMP a Useqq => 'b'; p.collapse %]" => 'DUMP: File "input text" line 1 a Useqq => \'b\' = [ \'s\', { \'Useqq\' => \'b\' } ];', {a => "s"});
-process_ok("[% p = DUMP a; p.collapse %]" => 'DUMP: File "input text" line 1 a = "s";', {a => "s", tt_config => [DUMP => {Useqq => 1}]});
-process_ok("[% p = DUMP a; p.collapse %]|foo" => '|foo', {a => "s", tt_config => [DUMP => 0]});
-process_ok("[% p = DUMP _a, b; p.collapse %]" => 'DUMP: File "input text" line 1 _a, b = [ undef, \'c\' ];', {_a => "s", b=> "c"});
-process_ok("[% p = DUMP {a => 'b'}; p.collapse %]" => 'DUMP: File "input text" line 1 {a => \'b\'} = { \'a\' => \'b\' };');
-process_ok("[% p = DUMP _a; p.collapse %]" => 'DUMP: File "input text" line 1 _a = undef;', {_a => "s"});
-process_ok("[% p = DUMP a; p.collapse %]" => 'DUMP: File "input text" line 1 a = { \'b\' => \'c\' };', {a => {b => 'c'}});
-process_ok("[% p = DUMP a; p.collapse %]" => 'DUMP: File "input text" line 1 a = {};', {a => {_b => 'c'}});
-process_ok("[% p = DUMP a; p.collapse %]" => 'DUMP: File "input text" line 1 a = {};', {a => {_b => 'c'}, tt_config => [DUMP => {Sortkeys => 1}]});
-process_ok("[% p = DUMP a; p.collapse %]" => 'DUMP: File "input text" line 1 Dump(7)', {a => 7, tt_config => [DUMP => {handler=>sub {"Dump(@_)"}}]});
-process_ok("[% p = DUMP a; p.collapse %]" => 'a = \'s\';', {a => "s", tt_config => [DUMP => {header => 0}]});
-process_ok("[% p = DUMP a; p.collapse %]" => '<pre>a = &apos;s&apos;; </pre>', {a => "s", tt_config => [DUMP => {header => 0, html => 1}]});
+process_ok("[% DUMP a %]" => "DUMP: File \"input text\" line 1\n    a = '';\n");
+process_ok("[% p = DUMP a; p|collapse %]" => 'DUMP: File "input text" line 1 a = \'\';');
+process_ok("[% p = DUMP a; p|collapse %]" => 'DUMP: File "input text" line 1 a = \'s\';', {a => "s"});
+process_ok("[%\n p = DUMP a; p|collapse %]" => 'DUMP: File "input text" line 2 a = \'s\';', {a => "s"});
+process_ok("[% p = DUMP a, b; p|collapse %]" => 'DUMP: File "input text" line 1 a, b = [ \'s\', \'\' ];', {a => "s"});
+process_ok("[% p = DUMP a Useqq => 'b'; p|collapse %]" => 'DUMP: File "input text" line 1 a Useqq => \'b\' = [ \'s\', { \'Useqq\' => \'b\' } ];', {a => "s"});
+process_ok("[% p = DUMP a; p|collapse %]" => 'DUMP: File "input text" line 1 a = "s";', {a => "s", tt_config => [DUMP => {Useqq => 1}]});
+process_ok("[% p = DUMP a; p|collapse %]|foo" => '|foo', {a => "s", tt_config => [DUMP => 0]});
+process_ok("[% p = DUMP _a, b; p|collapse %]" => 'DUMP: File "input text" line 1 _a, b = [ \'\', \'c\' ];', {_a => "s", b=> "c"});
+process_ok("[% p = DUMP {a => 'b'}; p|collapse %]" => 'DUMP: File "input text" line 1 {a => \'b\'} = { \'a\' => \'b\' };');
+process_ok("[% p = DUMP _a; p|collapse %]" => 'DUMP: File "input text" line 1 _a = \'\';', {_a => "s"});
+process_ok("[% p = DUMP a; p|collapse %]" => 'DUMP: File "input text" line 1 a = { \'b\' => \'c\' };', {a => {b => 'c'}});
+process_ok("[% p = DUMP a; p|collapse %]" => 'DUMP: File "input text" line 1 a = {};', {a => {_b => 'c'}});
+process_ok("[% p = DUMP a; p|collapse %]" => 'DUMP: File "input text" line 1 a = {};', {a => {_b => 'c'}, tt_config => [DUMP => {Sortkeys => 1}]});
+process_ok("[% p = DUMP a; p|collapse %]" => 'DUMP: File "input text" line 1 Dump(7)', {a => 7, tt_config => [DUMP => {handler=>sub {"Dump(@_)"}}]});
+process_ok("[% p = DUMP a; p|collapse %]" => 'a = \'s\';', {a => "s", tt_config => [DUMP => {header => 0}]});
+process_ok("[% p = DUMP a; p|collapse %]" => '<pre>a = \'s\'; </pre>', {a => "s", tt_config => [DUMP => {header => 0, html => 1}]});
 local $ENV{'REQUEST_METHOD'} = 1;
-process_ok("[% p = DUMP a; p.collapse %]" => '<pre>a = &apos;s&apos;; </pre>', {a => "s", tt_config => [DUMP => {header => 0}]});
-process_ok("[% p = DUMP a; p.collapse %]" => 'a = \'s\';', {a => "s", tt_config => [DUMP => {header => 0, html => 0}]});
+process_ok("[% p = DUMP a; p|collapse %]" => '<pre>a = \'s\'; </pre>', {a => "s", tt_config => [DUMP => {header => 0}]});
+process_ok("[% p = DUMP a; p|collapse %]" => 'a = \'s\';', {a => "s", tt_config => [DUMP => {header => 0, html => 0}]});
 local $ENV{'REQUEST_METHOD'} = 0;
-process_ok("[% SET global; p = DUMP; p.collapse %]" => "DUMP: File \"input text\" line 1 EntireStash = { 'a' => 'b', 'global' => '' };", {a => 'b', tt_config => [DUMP => {Sortkeys => 1}]});
-process_ok("[% SET global; p = DUMP; p.collapse %]" => "DUMP: File \"input text\" line 1 EntireStash = { 'a' => 'b', 'global' => '' };", {a => 'b', tt_config => [DUMP => {Sortkeys => 1, EntireStash => 1}]});
-process_ok("[% SET global; p = DUMP; p.collapse %]" => "DUMP: File \"input text\" line 1", {a => 'b', tt_config => [DUMP => {Sortkeys => 1, EntireStash => 0}]});
+process_ok("[% SET global; SET component; SET template; SET inc; SET dec; p = DUMP; p|collapse %]" => "DUMP: File \"input text\" line 1 EntireStash = bless( { 'component' => '', 'dec' => '', 'global' => '', 'inc' => '', 'template' => '' }, 'Template::Stash' );");
+process_ok("[% SET global; SET component; SET template; SET inc; SET dec; p = DUMP; p|collapse %]" => "DUMP: File \"input text\" line 1 EntireStash = bless( { 'component' => '', 'dec' => '', 'global' => '', 'inc' => '', 'template' => '' }, 'Template::Stash' );", {tt_config => [DUMP => {Sortkeys => 1, EntireStash => 1}]});
+process_ok("[% SET global; p = DUMP; p|collapse %]" => "DUMP: File \"input text\" line 1", {a => 'b', tt_config => [DUMP => {Sortkeys => 1, EntireStash => 0}]});
 }
 
 ###----------------------------------------------------------------###
@@ -1207,8 +1207,8 @@ process_ok("[% CONFIG V2PIPE => 1 %][% BLOCK a %]b is [% b %][% END %][% PROCESS
 
 process_ok("[% CONFIG BOGUS => 2 %]bar" => '');
 
-process_ok("[% CONFIG ANYCASE %]|[% CONFIG ANYCASE => 1 %][% CONFIG ANYCASE %]" => 'CONFIG ANYCASE = undef|CONFIG ANYCASE = 1');
-process_ok("[% CONFIG ANYCASE %]|[% CONFIG ANYCASE => 1 %][% CONFIG ANYCASE %]" => 'CONFIG ANYCASE = undef|CONFIG ANYCASE = 1');
+process_ok("[% CONFIG ANYCASE %]|[% CONFIG ANYCASE => 1 %][% CONFIG ANYCASE %]" => 'CONFIG ANYCASE = 0|CONFIG ANYCASE = 1');
+process_ok("[% CONFIG ANYCASE %]|[% CONFIG ANYCASE => 1 %][% CONFIG ANYCASE %]" => 'CONFIG ANYCASE = 0|CONFIG ANYCASE = 1');
 
 process_ok("[% CONFIG DUMP    %]|[% CONFIG DUMP    => 0 %][% DUMP           %]bar" => 'CONFIG DUMP = undef|bar');
 process_ok("[% CONFIG DUMP => {Useqq=>1, header=>0, html=>0} %][% DUMP 'foo' %]" => "'foo' = \"foo\";\n");
