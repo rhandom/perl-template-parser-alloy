@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-7_template_00_base.t - Test the basic language functionality of CGI::Ex::Template - including many edge cases
+7_template_00_base.t - Test the basic language functionality of Template::Parser::CET - including many edge cases
 
 =cut
 

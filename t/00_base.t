@@ -8,7 +8,7 @@
 
 use strict;
 use warnings;
-use constant n_tests => 10;
+use constant n_tests => 24;
 use Test::More tests => n_tests;
 use Template;
 use Template::Config;
