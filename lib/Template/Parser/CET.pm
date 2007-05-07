@@ -6,7 +6,7 @@ Template::ParserCET - CGI::Ex::Template based parser
 
 =cut
 
-use vars qw($TEMP_VARNAME);
+use vars qw($TEMP_VARNAME $VERSION);
 use strict;
 use warnings;
 use CGI::Ex::Template 2.11;
@@ -17,6 +17,8 @@ use CGI::Ex::Dump qw(debug dex_trace);
 ### Template::Grammar from being loaded.
 
 BEGIN {
+    $VERSION = '0.01';
+
     $INC{'Template/Grammar.pm'} = 1;
 
     $TEMP_VARNAME = 'template_parser_cet_temp_varname';
@@ -812,3 +814,126 @@ sub compile_WRAPPER {
 1;
 
 __END__
+
+=head1 SYNOPSIS
+
+    use Template;
+    use Template::Parser::CET;
+    my $t = Template->new(
+        PARSER => Template::Parser->new
+    );
+
+
+    # you can override all instances of TT
+    # by any of the following methods
+    use Template::Parser::CET activate => 1;
+
+    # OR
+    use Template::Parser::CET;
+    Template::Parser::CET->activate;
+
+    # OR
+    use Template::Config;
+    $Template::Config::PARSER = 'Template::Parser::CET';
+
+    my $t = Template->new;
+
+=head1 DESCRIPTION
+
+Template::Parser::CET provides much or most of the TT3 syntax and runs
+on the current TT2 engine.
+
+CGI::Ex::Template (CET) provides a fast implementation of TT2 and TT3.
+There are some cases where Template::Toolkit is faster.  There are
+also some cases where shops have custom providers, or custom stashes
+that require the use of the current TT2 engine.  In these cases,
+Template::Parser::CET provides the best of both worlds - offering TT2
+AND TT3 syntax and running on the existing platform making use of all
+of your current work (In many cases CET should be able to do this
+anyway).
+
+This module may eventually be made obsolete when the final real
+Template::Toolkit 3 engine by Andy Wardley is released.  But that
+would only be a good thing.  If the TT3 engine doesn't provide full
+backward compatibility this module will.
+
+=head1
+
+
+
+=head1 TT2 SYNTAX THAT WILL BREAK
+
+=over 4
+
+=item Pipe (FILTER alias) operators in ambiguous places.
+
+Under TT2 the following line:
+
+    [% BLOCK a %]b is [% b %][% END %][% PROCESS a b => 234 | repeat(2) %]
+
+Would print:
+
+    b is 234b is 234
+
+Under CET and TT3 that line will print
+
+    b is 234234
+
+This is because the "|" has been used to allow for filter operations
+to be used inline on variables and also to call vmethods.
+
+The configuration option V2PIPE can be used to restore the old behavior.
+When V2PIPE is set to true (default is false), then CET will parse the
+block the same as TT2.  When false it will parse the same as CET or TT3.
+
+You can use the CONFIG directive to set the option around some chunks
+of code that use the old syntax.
+
+    [% CONFIG V2PIPE 1 -%]
+    [% BLOCK a %]b is [% b %][% END %][% PROCESS a b => 234 | repeat(2) %]
+    [%- CONFIG V2PIPE 0 %]
+
+Would print
+
+    b is 234b is 234
+
+
+=item Inline comments that end with the tag and not a newline.
+
+Because of the way the TT2 engine matches tags, the following
+works:
+
+    [% a # GET THE value of a %]
+
+Because CET is recursive in nature, the closing tag has not
+been matched by the time the comment is removed.  You will get
+a parse error saying not sure how to handle the tag.
+
+Simply change the previous example to the following:
+
+    [% a # GET THE value of a
+    %]
+
+All other commenting constructs parse just fine.
+
+=item The qw variable parse error
+
+If your template had a variable named qw - there will most likely be
+a parse error.
+
+In TT2 there was no qw() construct but there is in CET and TT3.
+
+    [% a = qw %]          Works fine in TT2 but is a parse error in TT3
+    [% a = qw(Foo Bar) %] Works fine in TT3 but is a parse error in TT2
+
+=back
+
+=head1 AUTHOR
+
+Paul Seamons <paul at seamons dot com>
+
+=head1 LICENSE
+
+This module may be distributed under the same terms as Perl itself.
+
+=cut
