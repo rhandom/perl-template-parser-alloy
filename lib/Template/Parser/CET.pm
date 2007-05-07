@@ -1,38 +1,74 @@
-package Template::ParserCET;
+package Template::Parser::CET;
 
-=head1 NAME
+###----------------------------------------------------------------###
+#  Copyright 2007 - Paul Seamons                                     #
+#  Distributed under the Perl Artistic License without warranty      #
+###----------------------------------------------------------------###
 
-Template::ParserCET - CGI::Ex::Template based parser
-
-=cut
-
-use vars qw($TEMP_VARNAME $VERSION);
+use vars qw(@ISA $TEMP_VARNAME $VERSION $ORIG_CONFIG_CLASS $NO_LOAD_EXTRA_VMETHODS);
 use strict;
 use warnings;
 use CGI::Ex::Template 2.11;
-use CGI::Ex::Dump qw(debug dex_trace);
+#use CGI::Ex::Dump qw(debug dex_trace);
+
+BEGIN {
+    $VERSION = '0.01';
+
+    $TEMP_VARNAME = 'template_parser_cet_temp_varname';
+
+    ### we intentionally are using @ISA instead of use base;
+    ### this is so we can attempt to avoid loading Template::Grammar
+    @ISA = qw(Template::Parser CGI::Ex::Template);
+};
 
 ###----------------------------------------------------------------###
 ### new with a little bit of wrangling to keep the
 ### Template::Grammar from being loaded.
 
-BEGIN {
-    $VERSION = '0.01';
-
-    $INC{'Template/Grammar.pm'} = 1;
-
-    $TEMP_VARNAME = 'template_parser_cet_temp_varname';
-};
-
-use base qw(Template::Parser CGI::Ex::Template);
-
 sub new {
     my $class  = shift;
     my $config = $_[0] && UNIVERSAL::isa($_[0], 'HASH') ? shift(@_) : { @_ };
 
+    ### use Template::Parser - but don't let it load Grammar
+    local $INC{'Template/Grammar.pm'} = 1;
     local $config->{'GRAMMAR'} = {LEXTABLE => 1, STATES => 1, RULES => 1};
+    require Template::Parser;
 
-    return $class->SUPER::new($config);
+    my $self = $class->SUPER::new($config);
+
+    ### grab a config item that CET knows about
+    $self->{'V2PIPE'} = $config->{'V2PIPE'} if defined $config->{'V2PIPE'};
+
+    return $self;
+}
+
+###----------------------------------------------------------------###
+### methods for installing
+
+sub activate {
+    require Template::Config;
+    if (! $ORIG_CONFIG_CLASS || $ORIG_CONFIG_CLASS ne $Template::Config::PARSER) {
+        $ORIG_CONFIG_CLASS = $Template::Config::PARSER;
+        $Template::Config::PARSER = __PACKAGE__;
+    }
+    1;
+}
+
+sub deactivate {
+    if ($ORIG_CONFIG_CLASS) {
+        $Template::Config::PARSER = $ORIG_CONFIG_CLASS;
+        $ORIG_CONFIG_CLASS = undef;
+    }
+    1;
+}
+
+sub import {
+    my ($class, @args) = @_;
+    push @args, 1 if @args % 2;
+    my %args = @args;
+    $class->activate   if $args{'activate'};
+    $class->deactivate if $args{'deactivate'};
+    1;
 }
 
 ###----------------------------------------------------------------###
@@ -77,9 +113,7 @@ sub _parse {
     local $self->{'_debug'} = $info->{'DEBUG'} || undef;
     my $doc = $self->{'FACTORY'}->template($self->compile_block($tree));
 
-#    print "--------------------------$ref->{name}--------------------------------\n";
 #    print $doc;
-#    print "--------------------------$ref->{name}--------------------------------\n";
     return $doc;
 }
 
@@ -468,6 +502,35 @@ sub compile_CLEAR {
     return $self->{'FACTORY'}->clear;
 }
 
+sub compile_CONFIG {
+    my ($self, $config) = @_;
+
+    ### prepare runtime config - not many options get these
+    my ($named, @the_rest) = @$config;
+    $named = $self->compile_named_args([$named])->[0];
+    $named = join ",", @$named;
+
+    ### show what current values are
+    my $items = join ",", map { s/\\([\'\$])/$1/g; "'$_'" } @the_rest;
+
+    my $get = $self->{'FACTORY'}->get($self->{'FACTORY'}->ident(["'$TEMP_VARNAME'", 0]));
+    return <<EOF;
+        do {
+            my \$conf = \$context->{'CONFIG'} ||= {};
+            my \$newconf = {$named};
+            \$conf->{\$_} = \$newconf->{\$_} foreach keys %\$newconf;
+
+            my \@items = ($items);
+            if (\@items) {
+                my \$str  = join("\n", map { /(^[A-Z]+)\$/ ? ("CONFIG \$_ = ".(defined(\$conf->{\$_}) ? \$conf->{\$_} : 'undef')) : \$_ } \@items);
+                \$stash->set(['$TEMP_VARNAME', 0], \$str);
+                $get;
+                \$stash->set(['$TEMP_VARNAME', 0], '');
+            }
+        };
+EOF
+}
+
 sub compile_DEBUG {
     my ($self, $ref) = @_;
     my @options = "'$ref->[0]'";
@@ -491,10 +554,53 @@ sub compile_DEFAULT {
 }
 
 sub compile_DUMP {
-    my ($self, $args, $node) = @_;
+    my ($self, $dump, $node) = @_;
     my $info = $self->node_info($node);
 
-    return $self->{'FACTORY'}->dump($self->compile_named_args($args), $info->{'file'}, $info->{'line'}, \$info->{'text'});
+    ### This would work if the DUMP patch was accepted.  It wasn't because of concerns about the size of the Grammar table
+    # return $self->{'FACTORY'}->dump($self->compile_named_args($dump), $info->{'file'}, $info->{'line'}, \$info->{'text'});
+
+    ### so we'll inline the method here
+
+    my $args = $self->compile_named_args($dump);
+    my $_file = $info->{'file'};
+    my $_line = $info->{'line'};
+    my $_text = $info->{'text'};
+
+    # add on named arguments as a final hashref
+    my $named = shift @$args;
+    push @$args, "{\n        " . join(",\n        ", @$named) . ",\n    },\n" if @$named;
+
+    # prepare arguments to pass to Dumper
+    my $_args = (@$args > 1) ? "[\n    ". join(",\n    ", @$args) .",\n    ]" # treat multiple args as a single arrayref to help name align
+              : (@$args > 0) ? $args->[0]                                     # treat single item as a single item
+              : '$stash';                                                     # treat entire stash as one item
+
+    # find the name of the variables being dumped
+    my $is_entire = ! @$args ? 1 : 0;
+    my $_name = $is_entire ? 'EntireStash' : $_text;
+    $_name =~ s/^.*?\bDUMP\s*//;
+    s/\'/\\\'/g for $_name, $_file;
+
+    my $get = $self->{'FACTORY'}->get($self->{'FACTORY'}->ident(["'$TEMP_VARNAME'", 0]));
+
+    return <<EOF;
+    do {
+        # DUMP
+        require Template::Parser::CET;
+        \$stash->set(['$TEMP_VARNAME', 0], Template::Parser::CET->play_dump({
+            context => \$context,
+            file    => '$_file',
+            line    => $_line,
+            name    => '$_name',
+            args    => $_args,
+            EntireStash => $is_entire,
+        }));
+        $get;
+        \$stash->set(['$TEMP_VARNAME', 0], '');
+    };
+EOF
+
 }
 
 sub compile_END { '' }
@@ -520,7 +626,6 @@ sub compile_FOREACH {
     my ($self, $ref, $node) = @_;
     my ($var, $items) = @$ref;
     if ($var) {
-        #debug $var;
         $var = $var->[0];
     }
 
@@ -811,9 +916,102 @@ sub compile_WRAPPER {
     return $self->{'FACTORY'}->wrapper([\@files, [$named]], $self->compile_block($node->[4]));
 }
 
+###----------------------------------------------------------------###
+### Install some CET vmethods that dont' exist in TT2 as of 2.19
+
+if (! $NO_LOAD_EXTRA_VMETHODS
+    && eval {require Template::Stash}) {
+
+    for my $meth (qw(0 int fmt rand)) {
+        next if defined $Template::Stash::SCALAR_OPS{$meth};
+        Template::Stash->define_vmethod('scalar', $meth => $CGI::Ex::Template::SCALAR_OPS->{$meth});
+    }
+
+    for my $meth (qw(fmt pick)) {
+        next if defined $Template::Stash::LIST_OPS{$meth};
+        Template::Stash->define_vmethod('list', $meth => $CGI::Ex::Template::LIST_OPS->{$meth});
+    }
+
+    for my $meth (qw(fmt)) {
+        next if defined $Template::Stash::HASH_OPS{$meth};
+        Template::Stash->define_vmethod('hash', $meth => $CGI::Ex::Template::HASH_OPS->{$meth});
+    }
+}
+
+
+###----------------------------------------------------------------###
+### handle the playing of the DUMP directive since it the patch wasn't accepted
+
+sub play_dump {
+    my ($class, $info) = @_;
+    my $context = $info->{'context'} || die "Missing context";
+
+    # find configuration overrides
+    my $conf = $context->{'CONFIG'}->{'DUMP'};
+    return '' if ! $conf && defined $conf; # DUMP => 0
+    $conf = {} if ref $conf ne 'HASH';
+
+    my ($file, $line, $name, $args, $EntireStash) = @{ $info }{qw(file line name args EntireStash)};
+
+    # allow for handler override
+    my $handler = $conf->{'handler'};
+    if (! $handler) {
+        require Data::Dumper;
+
+        # new object and configure it with keys that it understands
+        my $obj = Data::Dumper->new([]);
+        my $meth;
+        foreach my $prop (keys %$conf) {
+            $obj->$prop($conf->{$prop}) if $prop =~ /^\w+$/ && ($meth = $obj->can($prop));
+        }
+
+        # add in custom Sortkeys handler that can trim out private variables
+        my $sort = defined($conf->{'Sortkeys'}) ? $obj->Sortkeys : 1;
+        $obj->Sortkeys(sub { my $h = shift; [grep {$_ !~ $Template::Stash::PRIVATE} ($sort ? sort keys %$h : keys %$h)] });
+
+        $handler = sub { $obj->Values([@_]); $obj->Dump }
+    }
+
+    # play the handler
+    my $out;
+    if (! $EntireStash                      # always play if not EntireStash
+        || $conf->{'EntireStash'}           # explicitly set
+        || ! defined $conf->{'EntireStash'} # default to on
+        ) {
+        delete $args->{$TEMP_VARNAME} if $EntireStash;
+        $out = $handler->($args);
+    }
+    $out = '' if ! defined $out;
+
+    # show our variable names
+    $EntireStash ? $out =~ s/\$VAR1/$name/g : $out =~ s/\$VAR1/$name/;
+
+    # add headers and formatting
+    if ($conf->{'html'}                # explicitly html
+        || (! defined($conf->{'html'}) # or not explicitly no html
+            && $ENV{'REQUEST_METHOD'}  # and looks like a web request
+            )) {
+        if (defined $out) {
+            $out = $context->filter('html')->($out);
+            $out = "<pre>$out</pre>";
+        }
+        $out = "<b>DUMP: File \"$info->{file}\" line $info->{line}</b>$out" if $conf->{'header'} || ! defined $conf->{'header'};
+    } else {
+        $out = "DUMP: File \"$info->{file}\" line $info->{line}\n    $out" if $conf->{'header'} || ! defined $conf->{'header'};
+    }
+
+    return $out;
+}
+
+###----------------------------------------------------------------###
+
 1;
 
 __END__
+
+=head1 NAME
+
+Template::Parser::CET - CGI::Ex::Template based parser for the TT2 engine
 
 =head1 SYNOPSIS
 
