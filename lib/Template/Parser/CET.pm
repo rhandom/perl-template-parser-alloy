@@ -1055,9 +1055,334 @@ Template::Toolkit 3 engine by Andy Wardley is released.  But that
 would only be a good thing.  If the TT3 engine doesn't provide full
 backward compatibility this module will.
 
-=head1
+CET has provided TT3 features since Spring of 2006 but there has
+been little reported uptake.  The TT3 features/extended syntax
+are very compelling.  For various reasons people chose not to use CET.
+Now people can use TT2 and get the features of TT3 (through CET) today.
+
+Hopefully Template::Parser::CET and CGI::Ex::Template can be used in
+the same spirit as Pugs is used for Perl 6.  All of the code from
+CET and Template::Parser::CET are free for use in TT3.
+
+=head1 SPEED
+
+All speed is relative and varies tremendously depending upon the size
+and content of your template.
+
+Template::Parser::CET generally compiles documents at the same speed as
+Template::Parser and Template::Grammar. CGI::Ex::Template compiles
+documents to its AST (abastract syntax tree) very quickly, but
+Template::Paser::CET then has to emit a TT2 style compiled
+Template::Document perl document.  So even though CGI::Ex::Template
+has a speed advantage, the advantage is lost in Template::Parser::CET.
+
+If you use compiled in memory templates - they will execute as quickly as
+the normal TT2 documents.  In all other cases Template::Parser::CET
+will prepare the documents at about the same speed.
+
+=head1 FEATURES
+
+So what exactly are the features and syntax that Template::Parser::CET
+provides?  The following is a list of most of the features that will
+be in TT3 and are in Template::Parser::CET.
+
+=over 4
+
+=item Grammar
+
+CGI::Ex::Template provides Template::Parser::CET with a recursive
+grammar.  This provides a range of benefits including speed, better
+error reporting, more consistent syntax, more possibilities for
+extending the grammar.
+
+=item Numerical hash keys work
+
+    [% a = {1 => 2} %]
+
+All hash key parsing is a little more sane.  Not entirely more since
+CET needs to be backwards compatible.
+
+=item Quoted hash key interpolation is fine
+
+    [% a = {"$foo" => 1} %]
+
+=item Multiple ranges in same array constructor
+
+    [% a = [1..10, 21..30] %]
+
+=item Constructor types can call virtual methods. (TT3)
+
+    [% a = [1..10].reverse %]
+
+    [% "$foo".length %]
+
+    [% 123.length %]   # = 3
+
+    [% 123.4.length %]  # = 5
+
+    [% -123.4.length %] # = -5 ("." binds more tightly than "-")
+
+    [% (a ~ b).length %]
+
+    [% "hi".repeat(3) %] # = hihihi
+
+    [% {a => b}.size %] # = 1
+
+=item The "${" and "}" variable interpolators can contain expressions,
+not just variables.
+
+    [% [0..10].${ 1 + 2 } %] # = 4
+
+    [% {ab => 'AB'}.${ 'a' ~ 'b' } %] # = AB
+
+    [% color = qw/Red Blue/; FOR [1..4] ; color.${ loop.index % color.size } ; END %]
+      # = RedBlueRedBlue
+
+=item You can use regular expression quoting.
+
+    [% "foo".match( /(F\w+)/i ).0 %] # = foo
+
+    [% a = /a b c . e/xs %]
+
+=item Tags can be nested.
+
+    [% f = "[% (1 + 2) %]" %][% f | eval %] # = 3
+
+=item Reserved names are less reserved.
+
+    [% GET GET %] # gets the variable named "GET"
+
+    [% GET $GET %] # gets the variable who's name is stored in "GET"
+
+=item Pipe "|" can be used anywhere dot "." can be and means to call
+the virtual method.
+
+    [% a = {size => "foo"} %][% a.size %] # = foo
+
+    [% a = {size => "foo"} %][% a|size %] # = 1 (size of hash)
+
+=item Added V2PIPE configuration item
+
+Restores the behavior of the pipe operator to be
+compatible with TT2.
+
+With V2PIPE = 1
+
+    [% PROCESS a | repeat(2) %] # = value of block or file a repeated twice
+
+With V2PIPE = 0 (default)
+
+    [% PROCESS a | repeat(2) %] # = process block or file named a ~ a
+
+=item Added "fmt" scalar, list, and hash virtual methods which work
+similar to the Perl 6 methods.
+
+    [% text.fmt("%s") %]
+
+    [% list.fmt("%s", ", ") %]
+
+    [% hash.fmt("%s => %s", "\n") %]
+
+=item Added "pick" list virtual method which picks a random value.
+
+    [% ["a".."z"].pick(8).join %]
+
+=item Added "rand" text virtual method which gives a random number
+between 0 and the item.
+
+    [% 20.rand %]
+
+=item Added "0" text virtual method which returns the
+item itself.  This blurs the line between list and text items.
+
+    [% a = "20" %][% a.0 IF a.size %]
+
+=item Added "int" text virtual method which returns
+the integer portion of a value.
+
+    [% "2.3343".int %]
+
+=item Whitespace is less meaningful.
+
+    [% 2-1 %] # = 1 (fails in TT2)
+
+=item Added pow operator.
+
+    [% 2 ** 3 %] [% 2 pow 3 %] # = 8 8
+
+=item Added self modifiers (+=, -=, *=, /=, %=, **=, ~=).
+
+    [% a = 2;  a *= 3  ; a %] # = 6
+    [% a = 2; (a *= 3) ; a %] # = 66
+
+=item Added pre and post increment and decrement (++ --).
+
+    [% ++a ; ++a %] # = 12
+    [% a-- ; a-- %] # = 0-1
+
+=item Added qw// contructor.
+
+    [% a = qw(a b c); a.1 %] # = b
+
+    [% qw/a b c/.2 %] # = c
+
+=item Added regex contructor.
+
+    [% "FOO".match(/(foo)/i).0 %] # = FOO
+
+    [% a = /(foo)/i; "FOO".match(a).0 %] # = FOO
+
+=item Allow for scientific notation. (TT3)
+
+    [% a = 1.2e-20 %]
+
+    [% 123.fmt('%.3e') %] # = 1.230e+02
+
+=item Allow for hexidecimal input.
+
+    [% a = 0xff0000 %][% a %] # = 16711680
+
+    [% a = 0xff2 / 0xd; a.fmt('%x') %] # = 13a
+
+=item Post operative directives can be nested.
+
+Andy Wardley calls this side-by-side effect notation.
+
+    [% one IF two IF three %]
+
+    same as
+
+    [% IF three %][% IF two %][% one %][% END %][% END %]
 
 
+    [% a = [[1..3], [5..7]] %][% i FOREACH i = j FOREACH j = a %] # = 123567
+
+=item Semi-colons on directives in the same tag are optional.
+
+    [% SET a = 1
+       GET a
+     %]
+
+    [% FOREACH i = [1 .. 10]
+         i
+       END %]
+
+Note: a semi-colon is still required in front of any block directive
+that can be used as a post-operative directive.
+
+    [% 1 IF 0
+       2 %]   # prints 2
+
+    [% 1; IF 0
+       2
+       END %] # prints 1
+
+=item Added a DUMP directive.
+
+Used for Data::Dumpering the passed variable or expression.
+
+   [% DUMP a.a %] # dumps contents of a.a
+
+   [% DUMP %] # dumps entire stash
+
+The Dumping is configurable via a DUMP configuration item.
+
+=item Added CONFIG directive.
+
+   [% CONFIG
+        ANYCASE   => 1
+        PRE_CHOMP => '-'
+   %]
+
+=item There is better line information
+
+When debug dirs is on, directives on different lines separated
+by colons show the line they are on rather than a general line range.
+
+Parse errors actually know what line and character they occured at and
+tell you about it.
+
+=back
+
+=head1 USING Template::Parser::CET
+
+There are several ways to get TT to use Template::Parser::CET.
+
+=over 4
+
+=item Pass in object during configuration.
+
+    use Template;
+    use Template::Parser::CET;
+
+    my $t = Template->new(
+        PARSER => Template::Parser::CET->new(\%config),
+    );
+
+=item Override the current program (option 1).
+
+    use Template::Parser::CET activate => 1;
+
+=item Override the current program (option 2).
+
+    use Template::Parser::CET;
+    Template::Parser::CET->activate;
+
+You can then deactivate if youy want to use the normal parser
+by using:
+
+    Template::Parser::CET->deactivate;
+
+=item Override the current program (option 3).
+
+    use Template::Parser::CET;
+    use Template::Config;
+    local $Template::Config::PARSER = 'Template:Parser::CET';
+
+=item Override all default instances.
+
+    Modify the $PARSER value in Template/Config.pm
+    to be 'Template::Parser::CET' rather than 'Template::Parser'.
+
+=back
+
+=head1 DOCUMENTATION
+
+Template::Toolkit and CGI::Ex::Template already cover everything that
+would be covered here.  If you are running Template::Parser::CET then
+you already have both Template::Toolkit and CGI::Ex::Template installed.
+Please refer to their documentation for complete configuration and
+syntax examples.
+
+=head1 BUGS / TODO
+
+=over 4
+
+=item
+
+Template::Parser::CET is as non-invasive as it can be.  It does no
+modification to the existing TT2 install.  In order to provide features
+such as inline filters, self modifying operators, pre and post decrement
+and increment, and CONFIG and DUMP directive support, the abstraction
+to Template::Directive was broken.  This means that projects such as
+Jemplate can't use these extended features directly (but projects such
+as Jemplate could write faster smaller templates if they used CGI::Ex::Template's
+compiled AST directly).
+
+=item
+
+Cleanup compiled document output.
+
+=item
+
+Add more line numbers to the compiled output.
+
+=item
+
+Actually add the VObjects to the compile phase to get the
+compile time speed benefit.
+
+=back
 
 =head1 TT2 SYNTAX THAT WILL BREAK
 
@@ -1099,7 +1424,7 @@ Would print
 =item Inline comments that end with the tag and not a newline.
 
 Because of the way the TT2 engine matches tags, the following
-works:
+works in TT2:
 
     [% a # GET THE value of a %]
 
