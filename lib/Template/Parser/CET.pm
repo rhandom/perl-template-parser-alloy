@@ -981,6 +981,7 @@ Template::Parser::CET - CGI::Ex::Template based parser for the TT2 engine
 
     use Template;
     use Template::Parser::CET;
+
     my $t = Template->new(
         PARSER => Template::Parser->new
     );
@@ -1048,7 +1049,8 @@ will prepare the documents at about the same speed.
 
 So what exactly are the features and syntax that Template::Parser::CET
 provides?  The following is a list of most of the features that will
-be in TT3 and are in Template::Parser::CET.
+be in TT3 and are in Template::Parser::CET.  All of the listed features
+are in addition to those provided natively by Template::Toolkit.
 
 =over 4
 
@@ -1318,6 +1320,9 @@ you already have both Template::Toolkit and CGI::Ex::Template installed.
 Please refer to their documentation for complete configuration and
 syntax examples.
 
+For any of the items in the FEATURES section you will need to refer to
+the CGI::Ex::Template documentation.
+
 =head1 BUGS / TODO
 
 =over 4
@@ -1345,6 +1350,12 @@ Add more line numbers to the compiled output.
 
 Actually add the VObjects to the compile phase to get the
 compile time speed benefit.
+
+=item
+
+Override filter generation code to allow for fall back
+to the SCALAR_OPS methods if a filter can't be found
+by the passed name.
 
 =back
 
@@ -1412,6 +1423,38 @@ In TT2 there was no qw() construct but there is in CET and TT3.
 
     [% a = qw %]          Works fine in TT2 but is a parse error in TT3
     [% a = qw(Foo Bar) %] Works fine in TT3 but is a parse error in TT2
+
+=back
+
+=head1 TT2 TESTS THAT FAIL
+
+The following is a list of tests that will fail as of the
+TT2.19 test suite.  All of the failed tests are caused by behavior
+that will be obsoleted by TT3.
+
+=over 4
+
+=item t/compile3.t - Fails 1 test
+
+Both CET and TT2 return the same error - but the error isn't formatted the same.
+
+=item t/debug.t - Fails 1 test
+
+CET debugs INTERPOLATED GETS - TT2 doesn't.  There is an INTERPOLATED value that TT2 doesn't debug.
+
+=item t/fileline.t - Fails 4 tests
+
+CET is warn clean - even when performing numeric operations on non-numeric data - TT2 isn't and is testing for warnings.
+
+=item t/filter.t - Fails 1 test
+
+CET parses { 1 2 3 } as a hashref just fine - TT2 doesn't and expects an error.
+
+=item t/vars.t - Fails 8 tests (4 really, but parsing is failing)
+
+TT2 is allowing inline comments with closing tag on the same line.
+CET is recursive, the closing tag isn't matched before the closing tag -
+changing the closing tag to be on a separate line fixes the issue.
 
 =back
 
