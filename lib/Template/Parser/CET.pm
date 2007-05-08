@@ -450,8 +450,7 @@ sub compile_ident_str_from_cet {
 
 sub compile_BLOCK {
     my ($self, $name, $node) = @_;
-    my $block = $self->compile_tree($node->[4]);
-    $self->{'DEFBLOCK'}->{$name} = $self->{'FACTORY'}->template($block) if $block;
+    $self->{'DEFBLOCK'}->{$name} = $self->{'FACTORY'}->template($self->compile_tree($node->[4]));
     return '';
 }
 
