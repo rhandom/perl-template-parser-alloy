@@ -18,7 +18,7 @@ BEGIN {
     if ($is_tt) { Template::Parser::CET->deactivate } else { Template::Parser::CET->activate }
 };
 
-use Test::More tests => ! $is_tt ? 778 : 598;
+use Test::More tests => ! $is_tt ? 779 : 598;
 use Data::Dumper qw(Dumper);
 use constant test_taint => 0 && eval { require Taint::Runtime };
 
@@ -1044,7 +1044,7 @@ process_ok("[%- BLOCK a %]b is [% b %]
 print "### configuration ####################################################\n";
 
 process_ok('[% a = 7 %]$a' => 7, {tt_config => ['INTERPOLATE' => 1]});
-#process_ok('[% a = 7 %]$a' => 7, {tt_config => ['interpolate' => 1]}) if ! $is_tt; # TT2 doesn't support other cases
+process_ok('[% a = 7 %]$a' => 7, {tt_config => ['interpolate' => 1]}) if ! $is_tt; # TT2 doesn't support other cases
 
 ###----------------------------------------------------------------###
 print "### PERL #############################################################\n";
@@ -1207,8 +1207,8 @@ process_ok("[% CONFIG V2PIPE => 1 %][% BLOCK a %]b is [% b %][% END %][% PROCESS
 
 process_ok("[% CONFIG BOGUS => 2 %]bar" => '');
 
-process_ok("[% CONFIG ANYCASE %]|[% CONFIG ANYCASE => 1 %][% CONFIG ANYCASE %]" => 'CONFIG ANYCASE = 0|CONFIG ANYCASE = 1');
-process_ok("[% CONFIG ANYCASE %]|[% CONFIG ANYCASE => 1 %][% CONFIG ANYCASE %]" => 'CONFIG ANYCASE = 0|CONFIG ANYCASE = 1');
+process_ok("[% CONFIG ANYCASE %]|[% CONFIG ANYCASE => 1 %][% CONFIG ANYCASE %]" => 'CONFIG ANYCASE = undef|CONFIG ANYCASE = 1');
+process_ok("[% CONFIG ANYCASE %]|[% CONFIG ANYCASE => 1 %][% CONFIG ANYCASE %]" => 'CONFIG ANYCASE = undef|CONFIG ANYCASE = 1');
 
 process_ok("[% CONFIG DUMP    %]|[% CONFIG DUMP    => 0 %][% DUMP           %]bar" => 'CONFIG DUMP = undef|bar');
 process_ok("[% CONFIG DUMP => {Useqq=>1, header=>0, html=>0} %][% DUMP 'foo' %]" => "'foo' = \"foo\";\n");
