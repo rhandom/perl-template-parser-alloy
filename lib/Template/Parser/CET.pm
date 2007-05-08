@@ -5,39 +5,44 @@ package Template::Parser::CET;
 #  Distributed under the Perl Artistic License without warranty      #
 ###----------------------------------------------------------------###
 
-use vars qw(@ISA $TEMP_VARNAME $VERSION $ORIG_CONFIG_CLASS $NO_LOAD_EXTRA_VMETHODS);
+use vars qw($VERSION $TEMP_VARNAME $ORIG_CONFIG_CLASS $NO_LOAD_EXTRA_VMETHODS);
 use strict;
 use warnings;
+use base qw(CGI::Ex::Template);
+
 use CGI::Ex::Template 2.11;
-#use CGI::Ex::Dump qw(debug dex_trace);
+use CGI::Ex::Dump qw(debug dex_trace);
+use Template::Directive;
+use Template::Constants;
 
 BEGIN {
     $VERSION = '0.01';
 
     $TEMP_VARNAME = 'template_parser_cet_temp_varname';
-
-    ### we intentionally are using @ISA instead of use base;
-    ### this is so we can attempt to avoid loading Template::Grammar
-    @ISA = qw(Template::Parser CGI::Ex::Template);
 };
 
 ###----------------------------------------------------------------###
-### new with a little bit of wrangling to keep the
-### Template::Grammar from being loaded.
 
 sub new {
-    my $class  = shift;
-    my $config = $_[0] && UNIVERSAL::isa($_[0], 'HASH') ? shift(@_) : { @_ };
+    my $class = shift;
+    my $self  = $class->SUPER::new(@_);
 
-    ### use Template::Parser - but don't let it load Grammar
-    local $INC{'Template/Grammar.pm'} = 1;
-    local $config->{'GRAMMAR'} = {LEXTABLE => 1, STATES => 1, RULES => 1};
-    require Template::Parser;
+    $self->{'FACTORY'} ||= 'Template::Directive';
 
-    my $self = $class->SUPER::new($config);
+    # This debug section taken nearly verbatim from Template::Parser::new
+    # DEBUG config item can be a bitmask
+    if (defined (my $debug = $self->{'DEBUG'})) {
+        $self->{ DEBUG } = $debug & ( Template::Constants::DEBUG_PARSER
+                                    | Template::Constants::DEBUG_FLAGS );
+        $self->{ DEBUG_DIRS } = $debug & Template::Constants::DEBUG_DIRS;
+    }
 
-    ### grab a config item that CET knows about
-    $self->{'V2PIPE'} = $config->{'V2PIPE'} if defined $config->{'V2PIPE'};
+    # This factory section is taken nearly verbatim from Template::Parser::new
+    if ($self->{'NAMESPACE'}) {
+        my $fclass = $self->{'FACTORY'};
+        $self->{'FACTORY'} = $fclass->new(NAMESPACE => $self->{'NAMESPACE'} )
+            || return $class->error($fclass->error());
+    }
 
     return $self;
 }
@@ -72,56 +77,45 @@ sub import {
 }
 
 ###----------------------------------------------------------------###
-### these are the only overridden methods from Parser
+### parse the document and return a valid compiled Template::Document
 
-### use CGI::Ex::Templates parser
-sub split_text {
-    my ($self, $text) = @_;
+sub parse {
+    my ($self, $text, $info) = @_;
+    my ($tokens, $block);
 
-    my $doc = $self->{'_component'} = {
+    local $self->{'_debug'}     = defined($info->{'DEBUG'}) ? $info->{'DEBUG'} : $self->{'DEBUG_DIRS'} || undef;
+    local $self->{'DEFBLOCK'}   = {};
+    local $self->{'METADATA'}   = [];
+    local $self->{'_component'} = {
         _content => \$text,
+        name     => $info->{'name'},
+        modtime  => $info->{'time'},
     };
 
-    $self->{'_parse_error'} = undef;
-
-    my $tree = eval { $self->parse_tree(\$text) } || do { # errors die
-        # return an empty tree - we are delaying reporting the error until Parser gives us more information
-        $self->{'_parse_error'} = $@;
-        [];
-    };
-
-    return $tree;
-}
-
-### turn the output from CGI::Ex::Template into a real TT compiled template
-sub _parse {
-    my ($self, $tree, $info) = @_;
-
-    ### similar in spirit to CGI::Ex::Template->execute_tree - but outputs a TT2 compiled perl template
-
-    # fixup the component - so node_info can get the right info
-    my $ref = $self->{'_component'} || die "Missing _component handshake from split_text";
-    $ref->{'name'}    = $info->{'name'};
-    $ref->{'modtime'} = $info->{'time'};
-
-    # we can throw the error - now that Parser has given us more infomration
-    if (my $err = delete $self->{'_parse_error'}) {
-        $err->doc($ref) if UNIVERSAL::can($err, 'doc') && ! $err->doc;
+    ### parse to the AST
+    my $tree = eval { $self->parse_tree(\$text) }; # errors die
+    if (! $tree) {
+        my $err = $@;
+        $err->doc($self->{'_component'}) if UNIVERSAL::can($err, 'doc') && ! $err->doc;
         die $err;
     }
 
-    local $self->{'_debug'} = $info->{'DEBUG'} || undef;
-    my $doc = $self->{'FACTORY'}->template($self->compile_block($tree));
-
+    ### take the AST to the doc
+    my $doc = $self->{'FACTORY'}->template($self->compile_tree($tree));
 #    print $doc;
-    return $doc;
+
+    return {
+        BLOCK     => $doc,
+        DEFBLOCKS => $self->{'DEFBLOCK'},
+        METADATA  => { @{ $self->{'METADATA'} } },
+    };
 }
 
 ###----------------------------------------------------------------###
 
 ### takes a tree of DIRECTIVES
 ### and returns a TT block
-sub compile_block {
+sub compile_tree {
     my ($self, $tree) = @_;
 
     # node contains (0: DIRECTIVE,
@@ -155,19 +149,17 @@ sub compile_block {
         $directive = 'FILTER' if $directive eq '|';
         next if $directive eq '#';
         my $method = "compile_$directive";
-
         my $result = $self->$method($node->[3], $node);
         push @doc, $result if defined $result;
     }
 
-    my $doc = $self->{'FACTORY'}->block(\@doc);
-
-#    print $doc;
-    return $doc;
+    return $self->{'FACTORY'}->block(\@doc);
 }
 
 ###----------------------------------------------------------------###
 
+### take arguments parsed in parse_args({named_at_front => 1})
+### and turn them into normal TT2 style args
 sub compile_named_args {
     my $self = shift;
     my $args = shift;
@@ -195,16 +187,10 @@ sub compile_named_args {
     return [\@named, (map { $self->compile_expr($_) } @positional)];
 }
 
-sub compile_args {
-    my ($self, $args) = @_;
-    return '[]' if ! $args;
-    return '['. join(", ", map { $self->compile_expr($_) } @$args) .']';
-}
-
 ### takes variables or expressions and translates them
 ### into the language that compiled TT templates understand
 ### it will recurse as deep as the expression is deep
-### foo                      :   'foo'
+### foo                      : 'foo'
 ### ['foo', 0]               : $stash->get('foo')
 ### ['foo', 0] = ['bar', 0]  : $stash->set('foo', $stash->get('bar'))
 ### [[undef, '+', 1, 2], 0]  : do { no warnings; 1 + 2 }
@@ -458,36 +444,15 @@ sub compile_ident_str_from_cet {
     return $str;
 }
 
-### references take the data in yet
-### another form
-sub compile_ident_str_from_tt {
-    my ($self, $ident) = @_;
-    return ''     if ! defined $ident;
-    return $ident if ! ref $ident;
-    return ''     if ! defined $ident->[0];
-
-    my $i = 0;
-    my $str = $ident->[$i++];
-    $i++; # for args;
-
-    while ($i < @$ident) {
-        my $dot = $ident->[$i++];
-        return $str if $dot ne '.';
-        return $str if ref $ident->[$i] || ! defined $ident->[$i];
-        $str .= ".". $ident->[$i++];
-        $i++; # for args
-    }
-    return $str;
-
-}
-
 ###----------------------------------------------------------------###
-### everything below this point are the output of DIRECTIVES - as much as possible we
+### everything in this section are the output of DIRECTIVES - as much as possible we
 ### try to use the facilities provided by Template::Directive
 
 sub compile_BLOCK {
     my ($self, $name, $node) = @_;
-    return $self->define_block($name, $self->{'FACTORY'}->template($self->compile_block($node->[4])));
+    my $block = $self->compile_tree($node->[4]);
+    $self->{'DEFBLOCK'}->{$name} = $self->{'FACTORY'}->template($block) if $block;
+    return '';
 }
 
 sub compile_BREAK { shift->{'FACTORY'}->break }
@@ -617,7 +582,7 @@ sub compile_FILTER {
                                 $args,
                                 $self->compile_expr($alias)
                                 ],
-                               $self->compile_block($node->[4]));
+                               $self->compile_tree($node->[4]));
 }
 
 sub compile_FOR { shift->compile_FOREACH(@_) }
@@ -632,7 +597,7 @@ sub compile_FOREACH {
     $items = $self->compile_expr($items);
 
     local $self->{'loop_type'} = 'FOREACH';
-    return $self->{'FACTORY'}->foreach($var, $items, [[]], $self->compile_block($node->[4]));
+    return $self->{'FACTORY'}->foreach($var, $items, [[]], $self->compile_tree($node->[4]));
 }
 
 sub compile_GET {
@@ -646,20 +611,20 @@ sub compile_IF {
     my $expr  = $self->compile_expr($ref);
     $expr = "!$expr" if $unless;
 
-    my $block = $self->compile_block($node->[4]);
+    my $block = $self->compile_tree($node->[4]);
 
     my @elsif;
     my $had_else;
     while ($node = $node->[5]) { # ELSE, ELSIF's
         if ($node->[0] eq 'ELSE') {
             if ($node->[4]) {
-                push @elsif, $self->compile_block($node->[4]);
+                push @elsif, $self->compile_tree($node->[4]);
                 $had_else = 1;
             }
             last;
         }
         my $_expr  = $self->compile_expr($node->[3]);
-        my $_block = $self->compile_block($node->[4]);
+        my $_block = $self->compile_tree($node->[4]);
         push @elsif, [$_expr, $_block];
     }
     push @elsif, undef if ! $had_else;
@@ -707,12 +672,12 @@ sub compile_MACRO {
         $sub_tree = $sub_tree->[0]->[4];
     }
 
-    return $self->{'FACTORY'}->macro($name, $self->compile_block($sub_tree), $args);
+    return $self->{'FACTORY'}->macro($name, $self->compile_tree($sub_tree), $args);
 }
 
 sub compile_META {
     my ($self, $hash, $node) = @_;
-    $self->add_metadata([%$hash]) if $hash;
+    push(@{ $self->{'METADATA'} }, %$hash) if $hash;
     return '';
 }
 
@@ -729,7 +694,7 @@ sub compile_PERL {
     my $block = $node->[4] || return '';
     return $self->{'FACTORY'}->no_perl if ! $self->{'EVAL_PERL'};
 
-    return $self->{'FACTORY'}->perl($self->compile_block($block));
+    return $self->{'FACTORY'}->perl($self->compile_tree($block));
 }
 
 sub compile_PROCESS {
@@ -779,7 +744,7 @@ sub compile_SET {
             my $sub_tree = $node->[4];
             $sub_tree = $sub_tree->[0]->[4] if $sub_tree->[0] && $sub_tree->[0]->[0] eq 'BLOCK';
             $set = do { local $self->{'_return_capture_ident'} = 1; $self->compile_expr($set) };
-            $out .= $self->{'FACTORY'}->capture($set, $self->compile_block($sub_tree));
+            $out .= $self->{'FACTORY'}->capture($set, $self->compile_tree($sub_tree));
             next;
         } else { # normal var
             $val = $self->compile_expr($val);
@@ -812,7 +777,7 @@ sub compile_SWITCH {
     my $default;
     while ($node = $node->[5]) { # CASES
         my $var   = $node->[3];
-        my $block = $self->compile_block($node->[4]);
+        my $block = $self->compile_tree($node->[4]);
         if (! defined $var) {
             $default = $block;
             next;
@@ -841,19 +806,19 @@ sub compile_TRY {
     my ($self, $foo, $node, $out_ref) = @_;
     my $out = '';
 
-    my $block = $self->compile_block($node->[4]);
+    my $block = $self->compile_tree($node->[4]);
 
     my @catches;
     my $had_final;
     while ($node = $node->[5]) { # FINAL, CATCHES
         if ($node->[0] eq 'FINAL') {
             if ($node->[4]) {
-                $had_final = $self->compile_block($node->[4]);
+                $had_final = $self->compile_tree($node->[4]);
             }
             next;
         }
         my $_expr  = defined($node->[3]) && uc($node->[3]) ne 'DEFAULT' ? $node->[3] : ''; #$self->compile_expr($node->[3]);
-        my $_block = $self->compile_block($node->[4]);
+        my $_block = $self->compile_tree($node->[4]);
         push @catches, [$_expr, $_block];
     }
     push @catches, $had_final;
@@ -888,10 +853,10 @@ sub compile_VIEW {
     ### prepare the blocks
     #my $prefix = $hash->{'prefix'} || (ref($name) && @$name == 2 && ! $name->[1] && ! ref($name->[0])) ? "$name->[0]/" : '';
     foreach my $key (keys %$blocks) {
-        $blocks->{$key} = $self->{'FACTORY'}->template($self->compile_block($blocks->{$key})); #{name => "${prefix}${key}", _tree => $blocks->{$key}};
+        $blocks->{$key} = $self->{'FACTORY'}->template($self->compile_tree($blocks->{$key})); #{name => "${prefix}${key}", _tree => $blocks->{$key}};
     }
 
-    my $block = $self->compile_block($node->[4]);
+    my $block = $self->compile_tree($node->[4]);
     my $stuff= $self->{'FACTORY'}->view([[$viewname], [$named]], $block, $blocks);
 #    print "---------------------\n". $stuff ."------------------------------\n";
     return $stuff;
@@ -903,7 +868,7 @@ sub compile_WHILE {
     my $expr  = $self->compile_expr($ref);
 
     local $self->{'loop_type'} = 'WHILE';
-    my $block = $self->compile_block($node->[4]);
+    my $block = $self->compile_tree($node->[4]);
 
     return $self->{'FACTORY'}->while($expr, $block);
 }
@@ -913,7 +878,7 @@ sub compile_WRAPPER {
 
     my ($named, @files) = @{ $self->compile_named_args($ref) };
 
-    return $self->{'FACTORY'}->wrapper([\@files, [$named]], $self->compile_block($node->[4]));
+    return $self->{'FACTORY'}->wrapper([\@files, [$named]], $self->compile_tree($node->[4]));
 }
 
 ###----------------------------------------------------------------###
