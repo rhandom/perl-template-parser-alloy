@@ -12,8 +12,8 @@ WriteMakefile(
               VERSION_FROM  => "lib/Template/Parser/CET.pm",
               INSTALLDIRS   => 'site',
               PREREQ_PM  => {
-                  Template            => 0,
-                  'CGI::Ex::Template' => '2.11',
+                  Template  => '2.00',
+                  'CGI::Ex' => '2.11',
               },
 
               dist          => {
