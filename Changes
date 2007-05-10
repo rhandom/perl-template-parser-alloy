@@ -1,4 +1,8 @@
 Revision history for Perl extension Template::Parser::CET
 
+0.02  May 10 2007
+        - Fixed erroneous test that was hard coded to look for Template::Stash.  Should
+          now work with default Template::Stash::XS also.  No changes to the module itself.
+
 0.01  May 08 2007
         - Initial release
