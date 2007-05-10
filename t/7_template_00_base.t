@@ -1188,8 +1188,8 @@ local $ENV{'REQUEST_METHOD'} = 1;
 process_ok("[% p = DUMP a; p|collapse %]" => '<pre>a = \'s\'; </pre>', {a => "s", tt_config => [DUMP => {header => 0}]});
 process_ok("[% p = DUMP a; p|collapse %]" => 'a = \'s\';', {a => "s", tt_config => [DUMP => {header => 0, html => 0}]});
 local $ENV{'REQUEST_METHOD'} = 0;
-process_ok("[% SET global; SET component; SET template; SET inc; SET dec; p = DUMP; p|collapse %]" => "DUMP: File \"input text\" line 1 EntireStash = bless( { 'component' => '', 'dec' => '', 'global' => '', 'inc' => '', 'template' => '' }, 'Template::Stash' );");
-process_ok("[% SET global; SET component; SET template; SET inc; SET dec; p = DUMP; p|collapse %]" => "DUMP: File \"input text\" line 1 EntireStash = bless( { 'component' => '', 'dec' => '', 'global' => '', 'inc' => '', 'template' => '' }, 'Template::Stash' );", {tt_config => [DUMP => {Sortkeys => 1, EntireStash => 1}]});
+process_ok("[% SET global; SET component; SET template; SET inc; SET dec; p = DUMP; p|collapse %]" => qr{\QDUMP: File \"input text\" line 1 EntireStash = bless( { 'component' => '', 'dec' => '', 'global' => '', 'inc' => '', 'template' => '' }, '\E\w+(::\w+)*\Q' );\E});
+process_ok("[% SET global; SET component; SET template; SET inc; SET dec; p = DUMP; p|collapse %]" => qr{\QDUMP: File \"input text\" line 1 EntireStash = bless( { 'component' => '', 'dec' => '', 'global' => '', 'inc' => '', 'template' => '' }, '\E\w+(::\w+)*\Q' );\E}, {tt_config => [DUMP => {Sortkeys => 1, EntireStash => 1}]});
 process_ok("[% SET global; p = DUMP; p|collapse %]" => "DUMP: File \"input text\" line 1", {a => 'b', tt_config => [DUMP => {Sortkeys => 1, EntireStash => 0}]});
 }
 
