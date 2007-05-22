@@ -13,7 +13,7 @@ WriteMakefile(
               INSTALLDIRS   => 'site',
               PREREQ_PM  => {
                   Template  => '2.00',
-                  'CGI::Ex' => '2.11',
+                  'CGI::Ex' => '2.13',
               },
 
               dist          => {
