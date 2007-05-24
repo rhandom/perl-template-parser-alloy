@@ -989,7 +989,7 @@ process_ok("[% constants.foo.\${constants.bang} %]" => '57', {tt_config => [@con
 process_ok('[% constants.${"harry"} %]' => 'do_this_once', {constants => {harry => 'foo'}, tt_config => \@config_c});
 #process_ok('[% ${"constants"}.harry %]' => 'foo',          {constants => {harry => 'foo'}, tt_config => \@config_c}) if ! $is_tt; # TT2 does it differently
 process_ok('[% ${"constants"}.harry %]' => 'do_this_once', {constants => {harry => 'foo'}, tt_config => \@config_c}); # if $is_tt;
-process_ok('[% ${"con${\\"s\\"}tants"}.harry %]' => 'foo', {constants => {harry => 'foo'}, tt_config => \@config_c}) if ! $is_tt;
+process_ok('[% ${"con${\'s\'}tants"}.harry %]' => 'foo', {constants => {harry => 'foo'}, tt_config => \@config_c}) if ! $is_tt;
 
 ###----------------------------------------------------------------###
 print "### INTERPOLATE / ANYCASE / TRIM #####################################\n";
@@ -1021,10 +1021,10 @@ $vars = {a => {b => {c=>'Cb'}, B => {c=>'CB'}}, b => 'B', Cb => 'bar', CB => 'Ba
 process_ok('[% a.b.c %]|[% $a.b.c %]|[% a.$b.c %]|[% ${ a.b.c } %]' => 'Cb||CB|bar', $vars);
 process_ok('[% a.b.c %]|[% $a.b.c %]|[% a.$b.c %]|[% ${ a.b.c } %]' => 'Cb|Cb|Cb|bar', {%$vars, tt_config => [V1DOLLAR => 1]});
 
-process_ok('[% "$a" %]|$a|[% "${a}" %]|${a}' => 'A|$a|A|${a}', {a => 'A', A => 'bar'});
-process_ok('[% "$a" %]|$a|[% "${a}" %]|${a}' => 'A|$a|A|${a}', {a => 'A', A => 'bar', tt_config => [V1DOLLAR => 1]});
-process_ok('[% "$a" %]|$a|[% "${a}" %]|${a}' => 'A|A|A|A',     {a => 'A', A => 'bar', tt_config => [INTERPOLATE => 1]});
-process_ok('[% "$a" %]|$a|[% "${a}" %]|${a}' => 'A|A|A|A',     {a => 'A', A => 'bar', tt_config => [V1DOLLAR => 1, INTERPOLATE => 1]});
+process_ok('[% "$a" %]/$a/[% "${a}" %]/${a}' => 'A/$a/A/${a}', {a => 'A', A => 'bar'});
+process_ok('[% "$a" %]/$a/[% "${a}" %]/${a}' => 'A/$a/A/${a}', {a => 'A', A => 'bar', tt_config => [V1DOLLAR => 1]});
+process_ok('[% "$a" %]/$a/[% "${a}" %]/${a}' => 'A/A/A/A',     {a => 'A', A => 'bar', tt_config => [INTERPOLATE => 1]});
+process_ok('[% "$a" %]/$a/[% "${a}" %]/${a}' => 'A/A/A/A',     {a => 'A', A => 'bar', tt_config => [V1DOLLAR => 1, INTERPOLATE => 1]});
 
 process_ok('[% constants.a %]|[% $constants.a %]|[% constants.$a %]' => 'A|A|A', {tt_config => [V1DOLLAR => 1, CONSTANTS => {a => 'A'}]});
 
@@ -1145,10 +1145,10 @@ process_ok("[% ' \$foo ' %]" => ' $foo ');
 process_ok('[% A = "bar" ; ${ "A" } %]' => 'bar');
 process_ok('[% A = "bar" ; "(${ A })" %]' => '(bar)');
 process_ok('[% A = "bar" ; ${ {a => "A"}.a } %]' => 'bar') if ! $is_tt;
-process_ok('[% A = "bar" ; "(${ {a => \"A\"\\}.a })" %]' => '(A)') if ! $is_tt;
-process_ok('[% A = "bar" ; "(${ \\${ {a => \"A\"\\}.a \\} })" %]' => '(bar)') if ! $is_tt;
-process_ok('[% A = "bar" %](${ {a => \"A\"\\}.a })' => '(A)', {tt_config => [INTERPOLATE => 1]}) if ! $is_tt;
-process_ok('[% A = "bar" %](${ \\${ {a => \"A\"\\}.a \\} })' => '(bar)', {tt_config => [INTERPOLATE => 1]}) if ! $is_tt;
+process_ok('[% A = "bar" ; "(${ {a => \'A\'}.a })" %]' => '(A)') if ! $is_tt;
+process_ok('[% A = "bar" ; "(${ ${ {a => \'A\'}.a } })" %]' => '(bar)') if ! $is_tt;
+process_ok('[% A = "bar" %](${ {a => \'A\'}.a })' => '(A)', {tt_config => [INTERPOLATE => 1]}) if ! $is_tt;
+process_ok('[% A = "bar" %](${ ${ {a => \'A\'}.a } })' => '(bar)', {tt_config => [INTERPOLATE => 1]}) if ! $is_tt;
 
 process_ok('[% "[%" %]' => '[%') if ! $is_tt;
 process_ok('[% "%]" %]' => '%]') if ! $is_tt;
