@@ -10,13 +10,13 @@ use strict;
 use warnings;
 use base qw(CGI::Ex::Template);
 
-use CGI::Ex::Template 2.11;
+use CGI::Ex::Template 2.14;
 use CGI::Ex::Dump qw(debug dex_trace);
 use Template::Directive;
 use Template::Constants;
 
 BEGIN {
-    $VERSION = '0.02';
+    $VERSION = '0.03';
 
     $TEMP_VARNAME = 'template_parser_cet_temp_varname';
 };
@@ -359,8 +359,6 @@ sub compile_operator {
 
     $op = ($op eq 'mod') ? '%'
         : ($op eq 'pow') ? '**'
-        : ($op eq '==' ) ? 'eq'
-        : ($op eq '!=' ) ? 'ne'
         :                  $op;
 
     if ($op eq '{}') {
