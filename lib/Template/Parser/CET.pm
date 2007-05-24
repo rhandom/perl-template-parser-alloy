@@ -15,7 +15,7 @@ use Template::Directive;
 use Template::Constants;
 
 BEGIN {
-    $VERSION = '0.04';
+    $VERSION = '0.03';
 
     $TEMP_VARNAME = 'template_parser_cet_temp_varname';
 };
