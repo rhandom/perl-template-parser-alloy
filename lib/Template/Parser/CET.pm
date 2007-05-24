@@ -11,7 +11,6 @@ use warnings;
 use base qw(CGI::Ex::Template);
 
 use CGI::Ex::Template 2.14;
-use CGI::Ex::Dump qw(debug dex_trace);
 use Template::Directive;
 use Template::Constants;
 
