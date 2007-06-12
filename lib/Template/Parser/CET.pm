@@ -461,6 +461,8 @@ sub compile_CLEAR {
     return $self->{'FACTORY'}->clear;
 }
 
+sub compile_COMMENT {}
+
 sub compile_CONFIG {
     my ($self, $config) = @_;
 
