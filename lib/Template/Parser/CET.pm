@@ -674,12 +674,13 @@ sub compile_LOOP {
     my \$conf = \$context->{'CONFIG'} ||= {};
     my \$var = ".$self->compile_expr($ref).";
     if (\$var) {
-        \$stash = \$context->localise();
         my \$global = ! \$conf->{'SYNTAX'} || \$conf->{'SYNTAX'} ne 'ht' || \$conf->{'GLOBAL_VARS'};
         my \$items  = ref(\$var) eq 'ARRAY' ? \$var : ref(\$var) eq 'HASH' ? [\$var] : [];
         my \$i = 0;
         for my \$ref (\@\$items) {
             \$context->throw('loop', 'Scalar value used in LOOP') if \$ref && ref(\$ref) ne 'HASH';
+            my \$stash = \$global ? \$stash : ref(\$stash)->new;
+            \$stash = \$context->localise() if \$global;
             if (\$conf->{'LOOP_CONTEXT_VARS'} && ! \$Template::Stash::PRIVATE) {
                 my \%set;
                 \@set{qw(__counter__ __first__ __last__ __inner__ __odd__)}
@@ -690,8 +691,8 @@ sub compile_LOOP {
                 \$stash->set(\$_, \$ref->{\$_}) foreach keys %\$ref;
             }
 ".$self->compile_tree($node->[4])."
+            \$stash = \$context->delocalise() if \$global;
         }
-        \$stash = \$context->delocalise();
     }
 };";
     return $out;
