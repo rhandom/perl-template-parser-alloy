@@ -38,7 +38,6 @@ sub process_ok { # process the value and say if it was ok
 
     Taint::Runtime::taint(\$str) if test_taint;
 
-    Template::Parser::CET->add_top_level_functions($vars);
     $obj->process(\$str, $vars, \$out);
     my $ok = ref($test) ? $out =~ $test : $out eq $test;
     if ($ok) {
