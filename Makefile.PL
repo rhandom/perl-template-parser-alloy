@@ -14,7 +14,6 @@ WriteMakefile(
               PREREQ_PM  => {
                   Template          => '2.00',
                   'Template::Alloy' => '1.002',
-                  'CGI::Ex'         => '2.14', # we don't really need this anymore
               },
 
               dist          => {

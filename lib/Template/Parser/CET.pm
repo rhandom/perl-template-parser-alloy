@@ -1175,10 +1175,20 @@ are in addition to those provided natively by Template::Toolkit.
 
 =item Grammar
 
-CGI::Ex::Template provides Template::Parser::CET with a recursive
+Template::Alloy provides Template::Parser::CET with a recursive
 grammar.  This provides a range of benefits including speed, better
-error reporting, more consistent syntax, more possibilities for
+error reporting, more consistent syntax, and more possibilities for
 extending the grammar.
+
+=item Syntax
+
+As part of the grammar, Template::Parser::CET supports the SYNTAX
+configuration item which can be one of tt2 (Template::Toolkit v2), tt3
+(Template::Toolkit v3), ht (HTML::Template), hte
+(HTML::Template::Expr), tmpl (Text::Tmpl), or velocity (Velocity VTL).
+This means you can use any of your templates from any of the major
+mini-language based template engines and run them on your stock TT2
+engine.
 
 =item Numerical hash keys work
 
@@ -1433,14 +1443,14 @@ by using:
 
 =head1 DOCUMENTATION
 
-Template::Toolkit and CGI::Ex::Template already cover everything that
+Template::Toolkit and Template::Alloy already cover everything that
 would be covered here.  If you are running Template::Parser::CET then
-you already have both Template::Toolkit and CGI::Ex::Template installed.
+you already have both Template::Toolkit and Template::Alloy installed.
 Please refer to their documentation for complete configuration and
 syntax examples.
 
 For any of the items in the FEATURES section you will need to refer to
-the CGI::Ex::Template documentation.
+the Template::Alloy documentation.
 
 =head1 BUGS / TODO
 
@@ -1454,7 +1464,7 @@ such as inline filters, self modifying operators, pre and post decrement
 and increment, and CONFIG and DUMP directive support, the abstraction
 to Template::Directive was broken.  This means that projects such as
 Jemplate can't use these extended features directly (but projects such
-as Jemplate could write faster smaller templates if they used CGI::Ex::Template's
+as Jemplate could write faster smaller templates if they used Template::Alloy's
 compiled AST directly).
 
 =item
