@@ -1103,6 +1103,67 @@ as the normal TT2 documents.  In all other cases Template::Parser::CET
 will prepare the documents at about the same speed (usually a little
 faster).
 
+=head1 SYNTAXES
+
+Template::Alloy supports TT2 and TT3.  It also supports Text::Tmpl,
+Velocity (VTL), HTML::Template and HTML::Template::Expr.  It is now
+possible to run HTML::Template templates on your TT2 engine.
+
+Template::Alloy allows you to use any of the interfaces of any of the
+major template engines.  Template::Parser::CET, because it is used
+through Template, only supports the Template interface (perl calling
+methods).  However by setting the SYNTAX during startup, you can use
+templates from the other major engines.
+
+The L<Template::Alloy> documentation will have more examples of using
+different syntaxes.
+
+=head2 Template::Toolkit style usage (tt3)
+
+    use Template;
+    use Template::Parser::CET;
+    Template::Parser::CET->activate;
+
+    my $t = Template->new(SYNTAX => 'tt3');
+
+    # OR
+    my $t = Template->new(SYNTAX => 'tt2'); # syntax that is more TT2 friendly
+
+    $t->process(\"[% foo %]", {foo => 'bar'});
+
+=head2 HTML::Template::Expr style usage (hte)
+
+    use Template;
+    use Template::Parser::CET;
+    Template::Parser::CET->activate;
+
+    my $t = Template->new(SYNTAX => 'hte');
+
+    # or
+    my $t = Template->new(SYNTAX => 'ht'); # HTML::Template
+
+    $t->process(\"<TMPL_VAR NAME=foo>", {foo => 'bar'});
+
+=head2 Text::Tmpl style usage (tmpl)
+
+    use Template;
+    use Template::Parser::CET;
+    Template::Parser::CET->activate;
+
+    my $t = Template->new(SYNTAX => 'tmpl');
+
+    $t->process(\"[% echo $foo %]", {foo => 'bar'});
+
+=head2 Velocity (VTL) style usage
+
+    use Template;
+    use Template::Parser::CET;
+    Template::Parser::CET->activate;
+
+    my $t = Template->new(SYNTAX => 'velocity');
+
+    $t->process(\"#set($foo 1 + 3) ($foo)");
+
 =head1 FEATURES
 
 So what exactly are the features and syntax that Template::Parser::CET
