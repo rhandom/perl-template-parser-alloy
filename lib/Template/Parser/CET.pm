@@ -564,6 +564,21 @@ EOF
 
 sub compile_END { '' }
 
+sub compile_EVAL {
+    my ($self, $ref, $node) = @_;
+    my ($named, @strs) = @$ref;
+
+    $named = [[]]; # TT doesn't allow args to eval ! $named ? [[]] : [[], map { $self->compile_expr($_) } @$named];
+
+    my $block = "
+    foreach my \$str (".join(",\n", map {$self->compile_expr($_)} @strs).") {
+        next if ! defined \$str;
+        \$output .= \$str; # Alloy does them one at a time
+    }";
+
+    $self->{'FACTORY'}->filter([["'eval'"], $named, ''], $block);
+}
+
 sub compile_FILTER {
     my ($self, $ref, $node) = @_;
     my ($alias, $filter) = @$ref;
