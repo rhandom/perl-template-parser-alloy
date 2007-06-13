@@ -930,7 +930,7 @@ sub compile_WRAPPER {
 if (! $NO_LOAD_EXTRA_VMETHODS
     && eval {require Template::Stash}) {
 
-    for my $meth (qw(0 abs atan2 cos exp hex int fmt lc log oct rand sin sprintf sqrt uc)) {
+    for my $meth (qw(0 abs atan2 cos exp fmt hex int js lc log oct rand sin sprintf sqrt uc)) {
         next if defined $Template::Stash::SCALAR_OPS{$meth};
         Template::Stash->define_vmethod('scalar', $meth => $Template::Alloy::SCALAR_OPS->{$meth});
     }
