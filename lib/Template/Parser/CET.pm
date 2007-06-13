@@ -672,10 +672,9 @@ sub compile_LOOP {
     $ref = [$ref, 0] if ! ref $ref;
 
     my $out = "do {
-    my \$out_ref = \\\$output;
-    my \$conf = \$context->{'CONFIG'} ||= {};
     my \$var = ".$self->compile_expr($ref).";
     if (\$var) {
+        my \$conf = \$context->{'CONFIG'} ||= {};
         my \$global = ! \$conf->{'SYNTAX'} || \$conf->{'SYNTAX'} ne 'ht' || \$conf->{'GLOBAL_VARS'};
         my \$items  = ref(\$var) eq 'ARRAY' ? \$var : ref(\$var) eq 'HASH' ? [\$var] : [];
         my \$i = 0;
