@@ -12,7 +12,7 @@ use Template;
 use Template::Parser::CET;
 Template::Parser::CET->activate;
 
-use Test::More tests => 85;
+use Test::More tests => 87;
 use constant test_taint => 0 && eval { require Taint::Runtime };
 
 Taint::Runtime::taint_start() if test_taint;
@@ -167,15 +167,16 @@ process_ok("<TMPL_LOOP blah>\n(<TMPL_VAR __first__>|<TMPL_VAR __last__>|<TMPL_VA
 (||||)
 (||||)foo", {blah => [undef, undef, undef]});
 
-#process_ok("<TMPL_LOOP blah>\n(<TMPL_VAR __first__>|<TMPL_VAR __last__>|<TMPL_VAR __odd__>|<TMPL_VAR __inner__>|<TMPL_VAR __counter__>)</TMPL_LOOP>foo" => "
-#(1||1|0|1)
-#(0|0||1|2)
-#(0|1|1|0|3)foo", {blah => [undef, undef, undef], tt_config => [LOOP_CONTEXT_VARS => 1]});
+local $Template::Stash::PRIVATE = 0;
+process_ok("<TMPL_LOOP blah>\n(<TMPL_VAR __first__>|<TMPL_VAR __last__>|<TMPL_VAR __odd__>|<TMPL_VAR __inner__>|<TMPL_VAR __counter__>)</TMPL_LOOP>foo" => "
+(1|0|1|0|1)
+(0|0|0|1|2)
+(0|1|1|0|3)foo", {blah => [undef, undef, undef], tt_config => [LOOP_CONTEXT_VARS => 1]});
 
-#process_ok("<TMPL_LOOP blah>\n(<TMPL_VAR __first__>|<TMPL_VAR __last__>|<TMPL_VAR __odd__>|<TMPL_VAR __inner__>|<TMPL_VAR __counter__>)</TMPL_LOOP>foo" => "
-#(1|0|1|0|1)
-#(0|0|0|1|2)
-#(0|1|1|0|3)foo", {blah => [undef, undef, undef], tt_config => [LOOP_CONTEXT_VARS => 1]}) ;
+process_ok("<TMPL_LOOP blah>\n(<TMPL_VAR __first__>|<TMPL_VAR __last__>|<TMPL_VAR __odd__>|<TMPL_VAR __inner__>|<TMPL_VAR __counter__>)</TMPL_LOOP>foo" => "
+(1|0|1|0|1)
+(0|0|0|1|2)
+(0|1|1|0|3)foo", {blah => [undef, undef, undef], tt_config => [LOOP_CONTEXT_VARS => 1]}) ;
 
 
 ###----------------------------------------------------------------###
