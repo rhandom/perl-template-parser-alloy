@@ -6,3 +6,6 @@ MANIFEST.SKIP
 README
 t/00_base.t
 t/7_template_00_base.t
+t/7_template_04_html_template.t
+t/7_template_05_text_tmpl.t
+t/7_template_06_velocity.t
