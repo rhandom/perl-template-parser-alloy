@@ -18,7 +18,7 @@ BEGIN {
     if ($is_tt) { Template::Parser::CET->deactivate } else { Template::Parser::CET->activate }
 };
 
-use Test::More tests => ! $is_tt ? 896 : 631;
+use Test::More tests => ! $is_tt ? 895 : 631;
 use constant test_taint => 0 && eval { require Taint::Runtime };
 
 Taint::Runtime::taint_start() if test_taint;
@@ -205,7 +205,7 @@ process_ok("[% __foo %]2" => '2', {__foo => 1});
 
 process_ok("[% qw/Foo Bar Baz/.0 %]" => 'Foo') if ! $is_tt;
 process_ok('[% [0..10].-1 %]' => '10') if ! $is_tt;
-process_ok('[% [0..10].${ 2.3 } %]' => '2') if ! $is_tt;
+#process_ok('[% [0..10].${ 2.3 } %]' => '2') if ! $is_tt;
 
 process_ok("[% (1 + 2)() %]" => ''); # parse error
 process_ok("[% (1 + 2) %]" => '3');
