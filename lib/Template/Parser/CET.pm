@@ -10,13 +10,13 @@ use strict;
 use warnings;
 use base qw(Template::Alloy);
 
-use Template::Alloy 1.002;
+use Template::Alloy 1.008;
 use Template::Alloy::Operator qw($OP_ASSIGN $OP_DISPATCH);
 use Template::Directive;
 use Template::Constants;
 
 BEGIN {
-    $VERSION = '0.04';
+    $VERSION = '0.05';
 
     $TEMP_VARNAME = 'template_parser_cet_temp_varname';
 };

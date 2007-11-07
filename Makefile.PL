@@ -13,7 +13,7 @@ WriteMakefile(
               INSTALLDIRS   => 'site',
               PREREQ_PM  => {
                   Template          => '2.00',
-                  'Template::Alloy' => '1.002',
+                  'Template::Alloy' => '1.008',
               },
 
               dist          => {
